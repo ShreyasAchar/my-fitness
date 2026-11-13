@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <title>Fitness Coach</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💪</text></svg>">
+</head>
+<body>
+<main class="fc">
+  <header class="fc-head">
+    <div>
+      <h1 class="fc-title">Fitness Coach</h1>
+      <p class="fc-lede" id="lede">Loading your tracker…</p>
+    </div>
+    <div class="fc-actions">
+      <span class="fc-meta" id="updated"></span>
+      <button class="fc-btn" id="refresh" type="button">Refresh</button>
+    </div>
+  </header>
+
+  <section class="fc-card" id="setup" hidden>
+    <h2 class="fc-h2">Connect your tracker</h2>
+    <p class="fc-sub">Paste your Apps Script web app URL and access key. They're saved on this device only.</p>
+    <label class="fc-field">Web app URL<input id="in-api" type="url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off"></label>
+    <label class="fc-field">Access key<input id="in-key" type="password" autocomplete="off"></label>
+    <button class="fc-btn" id="save" type="button">Save and load</button>
+    <p class="fc-error" id="error" hidden></p>
+  </section>
+
+  <div id="content" hidden>
+    <section class="fc-card" id="today" hidden>
+      <h2 class="fc-h2">Today so far</h2>
+      <div class="fc-tiles">
+        <div><p class="fc-tile-label">Calories left</p><p class="fc-big"><span id="t-calleft">—</span> <span class="fc-unit">kcal</span></p><p class="fc-meta"><span id="t-cal">—</span> eaten of <span id="t-caltarget">—</span></p></div>
+        <div><p class="fc-tile-label">Protein left</p><p class="fc-big"><span id="t-proleft">—</span> <span class="fc-unit">g</span></p><p class="fc-meta"><span id="t-pro">—</span> g eaten of <span id="t-protarget">—</span> g</p></div>
+        <div><p class="fc-tile-label">Water so far</p><p class="fc-big"><span id="t-water">—</span> <span class="fc-unit">L</span></p><p class="fc-meta">of <span id="t-watertarget">—</span> L</p></div>
+      </div>
+    </section>
+
+    <section id="week">
+      <h2 class="fc-h2">Last 7 days</h2>
+      <p class="fc-sub">Averages of the days logged in the 7 days to <span id="w-end">—</span>. Today is left out until it's complete.</p>
+      <div class="fc-tiles">
+        <div class="fc-card"><p class="fc-tile-label">Avg weight</p><p class="fc-big"><span id="w-weight">—</span> <span class="fc-unit">kg</span></p><p class="fc-meta"><span id="w-weightchg">—</span> kg vs the 7 days before</p></div>
+        <div class="fc-card"><p class="fc-tile-label">Avg calories</p><p class="fc-big"><span id="w-cal">—</span> <span class="fc-unit">kcal</span></p><p class="fc-meta" id="w-cal-meta">—</p></div>
+        <div class="fc-card"><p class="fc-tile-label">Avg protein</p><p class="fc-big"><span id="w-pro">—</span> <span class="fc-unit">g</span></p><p class="fc-meta" id="w-pro-meta">—</p></div>
+        <div class="fc-card"><p class="fc-tile-label">Avg steps</p><p class="fc-big"><span id="w-steps">—</span></p><p class="fc-meta" id="w-steps-meta">—</p></div>
+        <div class="fc-card"><p class="fc-tile-label">Avg sleep</p><p class="fc-big"><span id="w-sleep">—</span> <span class="fc-unit">hrs</span></p><p class="fc-meta" id="w-sleep-meta">—</p></div>
+        <div class="fc-card"><p class="fc-tile-label">Workout days</p><p class="fc-big"><span id="w-workouts">—</span> <span class="fc-unit">of 7</span></p><p class="fc-meta">Water avg <span id="w-water">—</span> L</p></div>
+      </div>
+    </section>
+
+    <section class="fc-card">
+      <h2 class="fc-h2">Weight trend</h2>
+      <p class="fc-sub">Daily weigh-ins and the 7-day average, which is the number to judge progress by.</p>
+      <div class="fc-chart" id="chart-weight"></div>
+      <div class="fc-legend"><span><i class="fc-sw fc-sw-muted"></i>Daily weigh-in</span><span><i class="fc-sw fc-sw-main"></i>7-day average</span><span><i class="fc-sw fc-sw-line"></i>Start weight</span></div>
+    </section>
+
+    <div class="fc-charts">
+      <section class="fc-card"><h2 class="fc-h2">Calories vs target</h2><p class="fc-sub">Red bars went over the daily target.</p><div class="fc-chart" id="chart-calories"></div></section>
+      <section class="fc-card"><h2 class="fc-h2">Protein vs target</h2><p class="fc-sub">Grey bars fell short of the daily target.</p><div class="fc-chart" id="chart-protein"></div></section>
+      <section class="fc-card"><h2 class="fc-h2">Steps vs target</h2><p class="fc-sub">Grey bars fell short of the daily target.</p><div class="fc-chart" id="chart-steps"></div></section>
+      <section class="fc-card"><h2 class="fc-h2">Sleep vs target</h2><p class="fc-sub">Grey bars fell short of the target. Sleep is logged on the day you woke up.</p><div class="fc-chart" id="chart-sleep"></div></section>
+    </div>
+
+    <section class="fc-card">
+      <h2 class="fc-h2">7-day scorecard</h2>
+      <p class="fc-sub">Calories count as on target at or under the target; everything else at or over it.</p>
+      <div class="fc-tablewrap"><table class="fc-table">
+        <thead><tr><th>Metric</th><th class="fc-num">7-day avg</th><th class="fc-num">Target</th><th>Unit</th><th class="fc-num">Days on target</th><th class="fc-num">Days logged</th></tr></thead>
+        <tbody id="tb-adherence"></tbody>
+      </table></div>
+    </section>
+
+    <section class="fc-card">
+      <h2 class="fc-h2">Recent training</h2>
+      <p class="fc-sub">Sessions you actually did, newest first. Volume is sets × reps × weight.</p>
+      <div class="fc-tablewrap"><table class="fc-table">
+        <thead><tr><th>Date</th><th>Session</th><th class="fc-num">Exercises</th><th class="fc-num">Volume (kg)</th><th class="fc-num">Minutes</th><th class="fc-num">Distance (km)</th></tr></thead>
+        <tbody id="tb-sessions"></tbody>
+      </table></div>
+    </section>
+
+    <details class="fc-notes">
+      <summary>How these numbers are worked out</summary>
+      <ul>
+        <li>Read live from your Fitness Coach Tracker Google Sheet (Daily Log, Workout Log, Profile) every time the page opens or you press Refresh.</li>
+        <li>The 7-day window ends on the last complete day before today. Averages skip days where that field wasn't logged.</li>
+        <li>The 7-day average weight is the mean of all weigh-ins in the 7 calendar days up to each date.</li>
+        <li>Targets come from the Profile tab, so change them there.</li>
+      </ul>
+      <button class="fc-btn fc-btn-quiet" id="forget" type="button">Forget key on this device</button>
+    </details>
+  </div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
