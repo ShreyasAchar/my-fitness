@@ -12,9 +12,9 @@ No fitness data lives in this repo. The page is public, but it shows nothing unt
 ## Setup
 
 1. In the Google Sheet: **Extensions → Apps Script**, paste `apps-script/Code.gs`.
-2. **Project Settings → Script properties → Add**: `DASHBOARD_KEY` = your secret key.
+2. Select `setup` in the function menu and **Run** it. It creates a random `DASHBOARD_KEY` in Script Properties and prints it in the Execution log.
 3. **Deploy → New deployment → Web app**. Execute as **Me**, access **Anyone**. Copy the `/exec` URL.
 4. Put that URL in `site/config.js` (`apiUrl`), commit and push.
 5. Open `https://shreyasachar.github.io/my-fitness/#key=YOUR_KEY` once on each device. The key is remembered there and removed from the address bar.
 
-To revoke access, change `DASHBOARD_KEY` in Script Properties.
+To revoke access, delete or change `DASHBOARD_KEY` in **Project Settings → Script properties** (then run `setup` again for a fresh one).
