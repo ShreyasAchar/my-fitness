@@ -220,8 +220,9 @@
     const tip = tooltip(el);
     svg.append('g').selectAll('rect').data(rows).join('rect')
       .attr('x', (r) => x(r.date)).attr('width', x.bandwidth())
-      .attr('y', (r) => y(r[o.field])).attr('height', (r) => y(0) - y(r[o.field])).attr('rx', 2)
-      .style('fill', (r) => (hit(r[o.field]) ? 'var(--main)' : o.dir === 'max' ? 'var(--bad)' : 'var(--muted-mark)'))
+      .attr('y', (r) => y(r[o.field])).attr('height', (r) => y(0) - y(r[o.field]))
+      .attr('rx', Math.min(6, x.bandwidth() / 3))
+      .style('fill', (r) => (hit(r[o.field]) ? o.color : o.dir === 'max' ? 'var(--bad)' : 'var(--muted-mark)'))
       .on('pointerenter pointermove', (ev, r) => tip.show(ev, [
         d3.utcFormat('%a %b %-d')(pd(r.date)), `${o.label}: ${fv(r[o.field])} ${o.unit}`,
         o.target != null ? `Target: ${fv(o.target)} ${o.unit}` : '']))
@@ -256,13 +257,20 @@
       svg.append('line').attr('class', 'fc-ref').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(T.startWeight)).attr('y2', y(T.startWeight));
       svg.append('text').attr('class', 'fc-reflabel').attr('x', W - m.r).attr('y', y(T.startWeight) - 5).attr('text-anchor', 'end').text(`Start ${T.startWeight.toFixed(1)} kg`);
     }
-    svg.append('g').selectAll('circle').data(rows).join('circle')
+    svg.append('g').attr('class', 'fc-dots').selectAll('circle').data(rows).join('circle')
       .attr('cx', (r) => x(pd(r.date))).attr('cy', (r) => y(r.weight)).attr('r', 3.5).style('fill', 'var(--muted-mark)');
     const avgRows = rows.filter((r) => r.weight7 != null);
+    const gid = 'fc-wgrad';
+    const grad = svg.append('defs').append('linearGradient').attr('id', gid).attr('x1', 0).attr('x2', 0).attr('y1', 0).attr('y2', 1);
+    grad.append('stop').attr('offset', '0%').style('stop-color', 'var(--c-weight)').style('stop-opacity', 0.28);
+    grad.append('stop').attr('offset', '100%').style('stop-color', 'var(--c-weight)').style('stop-opacity', 0);
+    svg.insert('path', '.fc-dots').datum(avgRows)
+      .attr('d', d3.area().x((r) => x(pd(r.date))).y0(H - m.b).y1((r) => y(r.weight7)))
+      .style('fill', `url(#${gid})`);
     svg.append('path').datum(avgRows).attr('d', d3.line().x((r) => x(pd(r.date))).y((r) => y(r.weight7)))
-      .style('fill', 'none').style('stroke', 'var(--main)').style('stroke-width', 2.5);
+      .style('fill', 'none').style('stroke', 'var(--c-weight)').style('stroke-width', 3).style('stroke-linecap', 'round').style('stroke-linejoin', 'round');
     const last = avgRows[avgRows.length - 1];
-    if (last) svg.append('circle').attr('cx', x(pd(last.date))).attr('cy', y(last.weight7)).attr('r', 4).style('fill', 'var(--main)');
+    if (last) svg.append('circle').attr('cx', x(pd(last.date))).attr('cy', y(last.weight7)).attr('r', 5).style('fill', 'var(--c-weight)').style('stroke', 'var(--panel)').style('stroke-width', 2.5);
     const tip = tooltip(el);
     const focus = svg.append('line').attr('y1', m.t).attr('y2', H - m.b).style('stroke', 'var(--ref)').style('opacity', 0);
     svg.append('rect').attr('x', m.l).attr('y', m.t).attr('width', W - m.l - m.r).attr('height', H - m.t - m.b).style('fill', 'transparent')
@@ -303,7 +311,7 @@
     const tb = $(tbodyId);
     tb.replaceChildren(...rows.map((r) => {
       const tr = document.createElement('tr');
-      cells(r).forEach(([txt, num]) => { const td = document.createElement('td'); td.textContent = txt; if (num) td.className = 'fc-num'; tr.appendChild(td); });
+      cells(r).forEach(([txt, num, cls]) => { const td = document.createElement('td'); if (txt instanceof Node) td.appendChild(txt); else td.textContent = txt; td.className = [num ? 'fc-num' : '', cls || ''].join(' ').trim(); tr.appendChild(td); });
       return tr;
     }));
   }
@@ -324,6 +332,12 @@
       setText('t-protarget', fmt(T.protein, 'int'));
       setText('t-water', fmt(tr.water || 0, '1'));
       setText('t-watertarget', fmt(T.water, '1'));
+      const bar = (id, v, t) => { const el = $(id); if (el) el.style.width = (t ? Math.min(100, Math.max(0, (v / t) * 100)) : 0) + '%'; };
+      bar('b-cal', tr.calories || 0, T.calories);
+      bar('b-pro', tr.protein || 0, T.protein);
+      bar('b-water', tr.water || 0, T.water);
+      const calBar = $('b-cal');
+      if (calBar) calBar.style.background = T.calories && (tr.calories || 0) > T.calories ? 'var(--bad)' : '';
     }
 
     setText('w-end', fmt(s.windowEnd, 'date'));
@@ -344,18 +358,28 @@
     setText('w-water', fmt(a.Water && a.Water.average, '1'));
 
     weightChart($('chart-weight'), days, T);
-    barChart($('chart-calories'), days, { field: 'calories', target: T.calories, dir: 'max', unit: 'kcal', label: 'Calories' });
-    barChart($('chart-protein'), days, { field: 'protein', target: T.protein, dir: 'min', unit: 'g', label: 'Protein' });
-    barChart($('chart-steps'), days, { field: 'steps', target: T.steps, dir: 'min', unit: 'steps', label: 'Steps' });
-    barChart($('chart-sleep'), days, { field: 'sleep', target: T.sleep, dir: 'min', unit: 'hrs', label: 'Sleep' });
+    barChart($('chart-calories'), days, { field: 'calories', target: T.calories, dir: 'max', unit: 'kcal', label: 'Calories', color: 'var(--c-cal)' });
+    barChart($('chart-protein'), days, { field: 'protein', target: T.protein, dir: 'min', unit: 'g', label: 'Protein', color: 'var(--c-pro)' });
+    barChart($('chart-steps'), days, { field: 'steps', target: T.steps, dir: 'min', unit: 'steps', label: 'Steps', color: 'var(--c-steps)' });
+    barChart($('chart-sleep'), days, { field: 'sleep', target: T.sleep, dir: 'min', unit: 'hrs', label: 'Sleep', color: 'var(--c-sleep)' });
 
+    const accent = { Calories: 'var(--c-cal)', Protein: 'var(--c-pro)', Steps: 'var(--c-steps)', Sleep: 'var(--c-sleep)', Water: 'var(--c-water)' };
     tableRows('tb-adherence', s.adherence, (r) => {
       const f = r.k ? '1' : 'int';
-      return [[r.metric], [fmt(r.average, f), 1], [fmt(r.target, f), 1], [r.unit], [fmt(r.daysOnTarget, 'int'), 1], [fmt(r.daysLogged, 'int'), 1]];
+      const chip = document.createElement('span');
+      chip.className = 'fc-chip';
+      chip.style.setProperty('--accent', accent[r.metric]);
+      chip.append(document.createElement('i'), r.metric);
+      const pill = document.createElement('span');
+      pill.className = 'fc-pill';
+      const share = r.daysLogged ? r.daysOnTarget / r.daysLogged : 0;
+      pill.style.setProperty('--accent', share >= 0.7 ? 'var(--ok)' : share >= 0.4 ? 'var(--c-cal)' : 'var(--bad)');
+      pill.textContent = `${fmt(r.daysOnTarget, 'int')}/${fmt(r.daysLogged, 'int')}`;
+      return [[chip], [fmt(r.average, f), 1], [fmt(r.target, f), 1], [r.unit, 0, 'fc-hide-sm'], [pill, 1]];
     });
     tableRows('tb-sessions', sessions.slice(0, 12), (r) => [
-      [fmt(r.date, 'date')], [r.session], [fmt(r.exercises, 'int'), 1],
-      [r.volume ? fmt(r.volume, 'int') : '—', 1], [r.minutes ? fmt(r.minutes, 'int') : '—', 1], [r.km ? r.km.toFixed(2) : '—', 1],
+      [fmt(r.date, 'date')], [r.session], [fmt(r.exercises, 'int'), 1, 'fc-hide-sm'],
+      [r.volume ? fmt(r.volume, 'int') : '—', 1], [r.minutes ? fmt(r.minutes, 'int') : '—', 1, 'fc-hide-sm'], [r.km ? r.km.toFixed(2) : '—', 1, 'fc-hide-sm'],
     ]);
   }
 
